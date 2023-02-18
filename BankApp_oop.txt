@@ -1,0 +1,202 @@
+import os
+from datetime import datetime
+
+class Customer:
+    def __init__(self, cust_id, firstname, lastname):
+        self.__cust_id = cust_id
+        self.firstname = firstname
+        self.lastname = lastname
+      
+    @property
+    def customer_id(self):
+        return self.__cust_id   
+
+    def detail(self):
+        return f"{self.lastname}, {self.firstname}"
+        
+        
+class Account:
+    def __init__(s, customer, account_no, account_type, 
+                 bal=0, pin='0000'):
+        s.customer = customer
+        s.__account_no = account_no
+        s.account_type = account_type
+        s.bal = bal
+        s.pin = pin
+        
+    @property
+    def account_no(self):
+        return self.__account_no
+    
+    
+class Bank:
+    
+    account_path = "accounts.txt"
+    trxn_path = "transactions.txt"
+    accounts = []
+    
+    @classmethod
+    def load_accounts(cls):
+        if os.path.isfile(Bank.account_path):
+            with open(Bank.account_path) as file:
+                data = file.readlines()
+                for row in data:
+                    row = row.strip().split(',')
+                    customer = Customer(row[0], row[1], row[2])
+                    account = Account(customer, row[3], row[4], float(row[5]), row[6])
+                    Bank.accounts.append(account)
+#             print(Bank.accounts[0].customer.lastname)
+        else:
+            return "Service Unavailable"
+    
+    @classmethod
+    def save_record(cls):
+        data = ''
+        for account in Bank.accounts:
+            data += account.customer.customer_id + ","
+            data += account.customer.firstname + ","
+            data += account.customer.lastname + ","
+            data += account.account_no + ","
+            data += account.account_type + ","
+            data += str(account.bal) + ","
+            data += account.pin + "\n"
+        
+        with open(Bank.account_path, 'w') as file:  
+            file.write(data)
+            
+            
+    @classmethod
+    def save_transaction(cls, acct, amount, trxn_type):
+        today = datetime.today()
+        data = f"{today},{acct.account_no},{amount},{trxn_type},{acct.bal}\n"
+        
+        with open(Bank.trxn_path, 'a') as file:  
+            file.write(data)
+        
+        
+        
+          
+    @classmethod
+    def account_balance(cls, account):
+        return account.bal
+    
+    @classmethod
+    def withdrawal(cls, account, amount):
+        if amount > 0:
+            if account.bal >= amount:
+                account.bal -= amount
+                Bank.save_record()
+                Bank.save_transaction(account, (-1 * amount), 'debit')
+                return "Transaction successful.."
+            else:
+                return "Insufficient Funds..."
+        else:
+            return "Invalid Amount"
+        
+    @classmethod
+    def deposit(cls, account, amount):
+        if amount > 0:
+            account.bal += amount
+            Bank.save_record()
+            Bank.save_transaction(account, amount, 'credit')
+            return "Transaction successful.."
+        else:
+            return "Invalid Amount"
+    
+    @classmethod
+    def transfer(cls, acct_from, acct_to, amount):
+        if acct_from.account_no != acct_to.account_no:         
+            if amount > 0:
+                if acct_from.bal >= amount:
+                    acct_from.bal -= amount
+                    acct_to.bal += amount
+                    Bank.save_record()
+                    Bank.save_transaction(acct_from, (-1 * amount), 'debit')
+                    Bank.save_transaction(acct_to, amount, 'credit')
+                    return "Transaction successful.."
+                else:
+                    return "Insufficient Funds..."
+            else:
+                return "Invalid Amount"
+        else:
+            return "You cannot transfer to the same account!"
+        
+        
+    @classmethod
+    def check_account(cls, account_no):
+        for account in Bank.accounts:
+            if account.account_no.strip() == account_no.strip():
+                return account       
+        return None
+    
+
+
+class FCMBMobileApp:
+    
+    def main(self):
+        Bank.load_accounts()
+        print('Welcome to FCMB..')
+        
+        acct_no = input('Enter Account No: ')
+        account = Bank.check_account(acct_no)
+        if account:
+            trial = 0
+            trial2 = 0
+            while trial < 3:
+                pin = input('Enter PIN: ')
+                if account.pin == pin:
+                    print('[1]: Check Balance')
+                    print('[2]: Withdraw')
+                    print('[3]: Deposit')
+                    print('[4]: Transfer')
+                    print('[#]: Exit\n')
+                    
+                    option = input('Enter Option\n')
+                    
+                    if option == '1':
+                        bal = Bank.account_balance(account)
+                        print(f'Balance: {bal}')
+                    elif option == '2':
+                        amount = float(input('Enter Amount: ')) 
+                        status = Bank.withdrawal(account, amount)
+                        print(status)
+                    elif option == '3':
+                        ben_acct_no = input("Enter Beneficiery's Account No: ")
+                        ben_acct = Bank.check_account(ben_acct_no)
+                        if ben_acct: 
+                            amount = float(input('Enter Amount: ')) 
+                            status = Bank.deposit(ben_acct, amount)
+                            print(status)
+                        else:
+                            print('Invalid Account No..')
+                    elif option == '4':
+                        ben_acct_no = input("Enter Beneficiery's Account No: ")
+                        ben_acct = Bank.check_account(ben_acct_no)
+                        if ben_acct: 
+                            amount = float(input('Enter Amount: ')) 
+                            status = Bank.transfer(account, ben_acct, amount)
+                            print(status)
+                        else:
+                            print('Invalid Account No..')
+                    elif option == '#':
+                        print('Thank you for banking with us..')
+                        break
+                    else:
+                        print('Invalid option')
+                        trial2 += 1
+                        if trial2 == 3:
+                            break
+                else:
+                    print('Invalid PIN') 
+                    trial += 1
+                
+                if input('Do you want to perform another transaction? Y/N: ').upper() != 'Y':
+                    break
+        else:
+            print('Account does not exist!')
+            
+
+            
+            
+if __name__ == "__main__":
+    FCMBMobileApp().main()
